@@ -9,6 +9,8 @@ import {
   CognitoUser,
   CognitoUserAttribute,
   CognitoUserPool,
+  AuthenticationDetails,
+  CognitoUserSession,
 } from "amazon-cognito-identity-js";
 
 import { User } from "./user.model";
@@ -63,7 +65,19 @@ export class AuthService {
     this.authIsLoading.next(true);
     const userData = {
       Username: username,
+      Pool: userPool,
     };
+    const CognitUser = new CognitoUser(userData);
+    CognitUser.confirmRegistration(code, true, (err, result) => {
+      if (err) {
+        this.authDidFail.next(true);
+        this.authIsLoading.next(false);
+        return;
+      }
+      this.authDidFail.next(false);
+      this.authIsLoading.next(false);
+      this.router.navigate(["/"]);
+    });
   }
   signIn(username: string, password: string): void {
     this.authIsLoading.next(true);
@@ -71,6 +85,26 @@ export class AuthService {
       Username: username,
       Password: password,
     };
+    const authDetails = new AuthenticationDetails(authData);
+    const userData = {
+      Username: username,
+      Pool: userPool,
+    };
+    const cognitoUser = new CognitoUser(userData);
+    const that = this;
+    cognitoUser.authenticateUser(authDetails, {
+      onSuccess(result: CognitoUserSession) {
+        that.authStatusChanged.next(true);
+        that.authDidFail.next(false);
+        that.authIsLoading.next(false);
+        console.log(result);
+      },
+      onFailure(err) {
+        that.authDidFail.next(true);
+        that.authIsLoading.next(false);
+        console.log(err);
+      },
+    });
     this.authStatusChanged.next(true);
     return;
   }
